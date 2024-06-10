@@ -109,6 +109,12 @@
             </div>
         </div>
     </div>
+<script>
+    document.getElementById('homeBtn').addEventListener('click', () => {
+        const popupContainer = new bootstrap.Modal(document.getElementById('popupContainer'));
+        popupContainer.show();
+    });
+</script>
 
     <script>
         document.getElementById('homeBtn').addEventListener('click', () => {
