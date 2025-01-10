@@ -64,10 +64,18 @@
             </div>
             <div class="featured-text-btn">
                 <button class="btn blue-btn">Pekerjakan Saya</button>
-                <div class="nav-button">
-            <a href="https://raw.githubusercontent.com/Septiantoriski/Septiantoriski.github.io/main/Profile.pdf" class="btn" download>
-            Download CV <i class="uil uil-file-alt"></i>
-            </a>
+                <button class="btn" onclick="downloadCV()">
+                Download CV <i class="uil uil-file-alt"></i>
+                </button>
+
+            <script>
+                function downloadCV() {
+                    const link = document.createElement('a');
+                    link.href = "https://raw.githubusercontent.com/Septiantoriski/Septiantoriski.github.io/main/Profile.pdf";
+                    link.download = "Profile.pdf";
+                    link.click();
+                }
+            </script>
             </div>
             <div class="social_icons">
                 <div class="icon"><i class="uil uil-instagram"></i></div>
@@ -109,10 +117,9 @@
             </section>
 
                     <div class="about-btn">
-                        <div class="nav-button">
-            <a href="https://raw.githubusercontent.com/Septiantoriski/Septiantoriski.github.io/main/Profile.pdf" class="btn" download>
-            Download CV <i class="uil uil-file-alt"></i>
-            </a>
+                        <div class="about-btn">
+                        <button class="btn" onclick="downloadCV()">Download CV <i class="uil uil-import"></i></button>
+                    </div>
                     </div>
                 </div>
             </div>
