@@ -61,6 +61,9 @@ sr.reveal('.featured-image',{delay: 300})
 /* -- PROJECT BOX -- */
 sr.reveal('.project-box',{interval: 200})
 
+/* -- IOT DEMO -- */
+sr.reveal('.iot-container',{delay: 200})
+
 /* -- HEADINGS -- */
 sr.reveal('.top-header',{})
 
