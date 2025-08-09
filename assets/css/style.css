@@ -539,6 +539,18 @@ footer{
     margin-top: 10px;
 }
 
+/* ----- IOT SENSOR DEMO ----- */
+.iot-container{
+    margin-top: 2rem;
+    text-align: center;
+    font-size: 18px;
+    color: var(--text-color-second);
+}
+.iot-container span{
+    color: var(--text-color-third);
+    font-weight: 600;
+}
+
 
 /* ----- MEDIA QUERY == 1024px / RESPONSIVE ----- */
 @media only screen and (max-width: 1024px){
