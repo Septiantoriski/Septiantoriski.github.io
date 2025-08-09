@@ -522,7 +522,17 @@ footer{
 }
 .footer-social-icons{
     display: flex;
-    gap: 30px;   
+    gap: 30px;
+}
+.online-users{
+    font-size: 14px;
+    margin-top: 10px;
+    color: var(--text-color-second);
+    text-align: center;
+}
+.online-users span{
+    font-weight: 600;
+    color: var(--text-color-third);
 }
 .bottom-footer{
     font-size: 14px;
