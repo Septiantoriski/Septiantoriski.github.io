@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistem Inspeksi OK/NG — Perbandingan Gambar 3D vs Aktual</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2330;
+    --border: #2d3748;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --ok: #3fb950;
+    --ng: #f85149;
+    --warn: #d29922;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  header { text-align: center; margin-bottom: 28px; }
+  header h1 { font-size: 1.6rem; letter-spacing: .5px; }
+  header h1 span { color: var(--accent); }
+  header p { color: var(--muted); margin-top: 6px; font-size: .95rem; }
+
+  .container { max-width: 1200px; margin: 0 auto; display: grid; gap: 20px; }
+
+  .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 820px) { .upload-grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .card h2 { font-size: 1rem; margin-bottom: 12px; color: var(--accent); }
+  .card h2 small { color: var(--muted); font-weight: normal; }
+
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .dropzone:hover, .dropzone.dragover { border-color: var(--accent); background: rgba(88,166,255,.06); }
+  .dropzone .hint { color: var(--muted); text-align: center; padding: 16px; font-size: .9rem; line-height: 1.6; }
+  .dropzone .hint .icon { font-size: 2.2rem; display: block; margin-bottom: 8px; }
+  .dropzone img { max-width: 100%; max-height: 300px; display: block; }
+  .dropzone input { display: none; }
+  .file-meta { color: var(--muted); font-size: .8rem; margin-top: 8px; min-height: 1em; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+  .control-group { display: flex; flex-direction: column; gap: 6px; min-width: 220px; flex: 1; }
+  .control-group label { font-size: .85rem; color: var(--muted); }
+  .control-group label b { color: var(--text); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  select, button {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: .95rem;
+    cursor: pointer;
+  }
+  button.primary {
+    background: linear-gradient(135deg, #1f6feb, #388bfd);
+    border: none;
+    font-weight: 600;
+    padding: 12px 28px;
+  }
+  button.primary:disabled { opacity: .4; cursor: not-allowed; }
+  button.primary:not(:disabled):hover { filter: brightness(1.15); }
+
+  .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--muted); }
+  .checkbox-row input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+  /* Hasil */
+  #resultSection { display: none; }
+  .verdict {
+    text-align: center;
+    padding: 26px;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+  }
+  .verdict.ok { border-color: var(--ok); background: rgba(63,185,80,.08); }
+  .verdict.ng { border-color: var(--ng); background: rgba(248,81,73,.08); }
+  .verdict .badge { font-size: 3rem; font-weight: 800; letter-spacing: 4px; }
+  .verdict.ok .badge { color: var(--ok); }
+  .verdict.ng .badge { color: var(--ng); }
+  .verdict .score { font-size: 1.1rem; color: var(--muted); margin-top: 6px; }
+  .verdict .score b { color: var(--text); font-size: 1.4rem; }
+
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+  .metric {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .metric .name { font-size: .8rem; color: var(--muted); margin-bottom: 6px; }
+  .metric .value { font-size: 1.5rem; font-weight: 700; }
+  .metric .bar { height: 6px; background: #30363d; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+  .metric .bar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width .6s ease; }
+  .metric .desc { font-size: .75rem; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+
+  .canvas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .canvas-box { text-align: center; }
+  .canvas-box p { color: var(--muted); font-size: .85rem; margin-bottom: 8px; }
+  .canvas-box canvas { max-width: 100%; border-radius: 8px; border: 1px solid var(--border); background: #000; }
+
+  .legend { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin-top: 12px; font-size: .8rem; color: var(--muted); }
+  .legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .legend .l-same::before { background: #1a7f37; }
+  .legend .l-mid::before { background: #d29922; }
+  .legend .l-diff::before { background: #f85149; }
+
+  #status { text-align: center; color: var(--warn); font-size: .9rem; min-height: 1.2em; }
+
+  .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  footer { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 32px; }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔍 Sistem Inspeksi <span>OK / NG</span></h1>
+  <p>Bandingkan gambar referensi 3D (render/CAD) dengan foto aktual untuk deteksi ketidaksesuaian.<br>
+  Semua proses berjalan di browser — tidak ada gambar yang di-upload ke server.</p>
+</header>
+
+<div class="container">
+
+  <!-- Upload -->
+  <div class="upload-grid">
+    <div class="card">
+      <h2>1. Gambar Referensi 3D <small>(master / standar)</small></h2>
+      <div class="dropzone" id="dropRef">
+        <input type="file" id="fileRef" accept="image/*">
+        <div class="hint"><span class="icon">🧊</span>Klik atau seret gambar render 3D ke sini</div>
+      </div>
+      <div class="file-meta" id="metaRef"></div>
+    </div>
+    <div class="card">
+      <h2>2. Gambar Aktual <small>(foto produk asli)</small></h2>
+      <div class="dropzone" id="dropAct">
+        <input type="file" id="fileAct" accept="image/*">
+        <div class="hint"><span class="icon">📷</span>Klik atau seret foto produk asli ke sini</div>
+      </div>
+      <div class="file-meta" id="metaAct"></div>
+    </div>
+  </div>
+
+  <!-- Pengaturan -->
+  <div class="card">
+    <h2>3. Pengaturan Inspeksi</h2>
+    <div class="controls">
+      <div class="control-group">
+        <label>Threshold kelulusan (OK jika skor ≥): <b id="thresholdVal">75%</b></label>
+        <input type="range" id="threshold" min="50" max="99" value="75">
+      </div>
+      <div class="control-group">
+        <label>Sensitivitas piksel beda: <b id="sensVal">Normal</b></label>
+        <input type="range" id="sensitivity" min="1" max="3" value="2" step="1">
+      </div>
+      <div class="control-group">
+        <label>Batas maksimum area cacat (NG jika lebih): <b id="defectVal">5%</b></label>
+        <input type="range" id="maxDefect" min="1" max="30" value="5">
+      </div>
+      <div class="control-group">
+        <label class="checkbox-row"><input type="checkbox" id="grayscale" checked> Mode grayscale (abaikan perbedaan warna material 3D vs foto)</label>
+        <label class="checkbox-row"><input type="checkbox" id="blur" checked> Pra-blur ringan (redam noise kamera)</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="btnCompare" disabled>▶ Jalankan Inspeksi</button>
+    <button id="btnReset">↺ Reset</button>
+  </div>
+  <div id="status"></div>
+
+  <!-- Hasil -->
+  <div id="resultSection" class="container" style="padding:0">
+    <div class="verdict" id="verdict">
+      <div class="badge" id="verdictBadge">—</div>
+      <div class="score">Skor kemiripan total: <b id="totalScore">—</b></div>
+      <div class="score" id="verdictNote"></div>
+    </div>
+
+    <div class="card">
+      <h2>Rincian Metrik</h2>
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="name">SSIM (Kemiripan Struktural)</div>
+          <div class="value" id="mSsim">—</div>
+          <div class="bar"><i id="bSsim"></i></div>
+          <div class="desc">Membandingkan pola struktur, kontras, dan pencahayaan lokal. Metrik paling penting untuk bentuk objek.</div>
+        </div>
+        <div class="metric">
+          <div class="name">Kecocokan Piksel</div>
+          <div class="value" id="mPixel">—</div>
+          <div class="bar"><i id="bPixel"></i></div>
+          <div class="desc">Persentase piksel yang nilainya berada dalam toleransi sensitivitas.</div>
+        </div>
+        <div class="metric">
+          <div class="name">Korelasi Histogram</div>
+          <div class="value" id="mHist">—</div>
+          <div class="bar"><i id="bHist"></i></div>
+          <div class="desc">Kesamaan distribusi kecerahan/warna secara global antara kedua gambar.</div>
+        </div>
+        <div class="metric">
+          <div class="name">Kemiripan Tepi (Kontur)</div>
+          <div class="value" id="mEdge">—</div>
+          <div class="bar"><i id="bEdge"></i></div>
+          <div class="desc">Deteksi tepi Sobel — mengecek apakah garis kontur/outline bentuk produk cocok dengan referensi 3D.</div>
+        </div>
+        <div class="metric">
+          <div class="name">Luas Area Cacat</div>
+          <div class="value" id="mDefect">—</div>
+          <div class="bar"><i id="bDefect"></i></div>
+          <div class="desc">Persentase piksel dengan perbedaan besar (zona merah pada heatmap). NG otomatis jika melebihi batas maksimum.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Visualisasi Perbedaan</h2>
+      <div class="canvas-grid">
+        <div class="canvas-box"><p>Referensi 3D (dinormalisasi)</p><canvas id="cvRef"></canvas></div>
+        <div class="canvas-box"><p>Aktual (dinormalisasi)</p><canvas id="cvAct"></canvas></div>
+        <div class="canvas-box"><p>Heatmap Perbedaan</p><canvas id="cvDiff"></canvas></div>
+        <div class="canvas-box"><p>Overlay Area NG pada Gambar Aktual</p><canvas id="cvOverlay"></canvas></div>
+      </div>
+      <div class="legend">
+        <span class="l-same">Sama / dalam toleransi</span>
+        <span class="l-mid">Beda sedang</span>
+        <span class="l-diff">Beda besar (potensi NG)</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="btnReport">⬇ Unduh Laporan (PNG)</button>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Sistem Inspeksi OK/NG · <a href="../index.html">← Kembali ke Beranda</a>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+
+  // Ukuran kerja: kedua gambar dinormalisasi ke resolusi yang sama
+  const WORK_W = 512;
+
+  const state = { ref: null, act: null };
+
+  const $ = id => document.getElementById(id);
+
+  // ---------- Upload & drag-drop ----------
+  function setupDropzone(dropId, inputId, key, metaId) {
+    const drop = $(dropId), input = $(inputId);
+    drop.addEventListener("click", () => input.click());
+    drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("dragover"); });
+    drop.addEventListener("dragleave", () => drop.classList.remove("dragover"));
+    drop.addEventListener("drop", e => {
+      e.preventDefault();
+      drop.classList.remove("dragover");
+      if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0], key, drop, metaId);
+    });
+    input.addEventListener("change", () => {
+      if (input.files.length) loadFile(input.files[0], key, drop, metaId);
+    });
+  }
+
+  function loadFile(file, key, drop, metaId) {
+    if (!file.type.startsWith("image/")) {
+      $("status").textContent = "File harus berupa gambar (PNG/JPG/WebP).";
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      state[key] = img;
+      drop.innerHTML = "";
+      const preview = img.cloneNode();
+      drop.appendChild(preview);
+      $(metaId).textContent = `${file.name} — ${img.naturalWidth}×${img.naturalHeight}px, ${(file.size/1024).toFixed(0)} KB`;
+      $("btnCompare").disabled = !(state.ref && state.act);
+      $("status").textContent = "";
+    };
+    img.onerror = () => { $("status").textContent = "Gagal memuat gambar."; };
+    img.src = URL.createObjectURL(file);
+  }
+
+  setupDropzone("dropRef", "fileRef", "ref", "metaRef");
+  setupDropzone("dropAct", "fileAct", "act", "metaAct");
+
+  // ---------- Kontrol ----------
+  const sensLabels = { 1: "Ketat", 2: "Normal", 3: "Longgar" };
+  $("threshold").addEventListener("input", e => $("thresholdVal").textContent = e.target.value + "%");
+  $("sensitivity").addEventListener("input", e => $("sensVal").textContent = sensLabels[e.target.value]);
+  $("maxDefect").addEventListener("input", e => $("defectVal").textContent = e.target.value + "%");
+
+  $("btnReset").addEventListener("click", () => location.reload());
+
+  // ---------- Pra-proses gambar ----------
+  function normalize(img) {
+    // Skala ke lebar kerja dengan rasio aspek referensi agar bisa dibandingkan piksel-per-piksel
+    const h = Math.round(WORK_W * (state.ref.naturalHeight / state.ref.naturalWidth));
+    const cv = document.createElement("canvas");
+    cv.width = WORK_W; cv.height = h;
+    const ctx = cv.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, WORK_W, h);
+    return { cv, ctx, w: WORK_W, h };
+  }
+
+  function toGray(data, w, h) {
+    const g = new Float32Array(w * h);
+    for (let i = 0, p = 0; i < g.length; i++, p += 4) {
+      g[i] = 0.299 * data[p] + 0.587 * data[p+1] + 0.114 * data[p+2];
+    }
+    return g;
+  }
+
+  function boxBlur(g, w, h) {
+    // Blur 3x3 sederhana untuk meredam noise
+    const out = new Float32Array(g.length);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let sum = 0, n = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const yy = y + dy, xx = x + dx;
+            if (yy >= 0 && yy < h && xx >= 0 && xx < w) { sum += g[yy*w+xx]; n++; }
+          }
+        }
+        out[y*w+x] = sum / n;
+      }
+    }
+    return out;
+  }
+
+  // ---------- Metrik ----------
+  function computeSSIM(a, b, w, h) {
+    // SSIM dengan jendela 8x8, langkah 4
+    const C1 = 6.5025, C2 = 58.5225, WIN = 8, STEP = 4;
+    let total = 0, count = 0;
+    for (let y = 0; y + WIN <= h; y += STEP) {
+      for (let x = 0; x + WIN <= w; x += STEP) {
+        let ma = 0, mb = 0;
+        for (let j = 0; j < WIN; j++)
+          for (let i = 0; i < WIN; i++) {
+            const idx = (y+j)*w + (x+i);
+            ma += a[idx]; mb += b[idx];
+          }
+        const n = WIN * WIN;
+        ma /= n; mb /= n;
+        let va = 0, vb = 0, cov = 0;
+        for (let j = 0; j < WIN; j++)
+          for (let i = 0; i < WIN; i++) {
+            const idx = (y+j)*w + (x+i);
+            const da = a[idx] - ma, db = b[idx] - mb;
+            va += da*da; vb += db*db; cov += da*db;
+          }
+        va /= n - 1; vb /= n - 1; cov /= n - 1;
+        const ssim = ((2*ma*mb + C1) * (2*cov + C2)) / ((ma*ma + mb*mb + C1) * (va + vb + C2));
+        total += ssim; count++;
+      }
+    }
+    return count ? Math.max(0, total / count) : 0;
+  }
+
+  function computePixelMatch(a, b, tolerance) {
+    let match = 0;
+    for (let i = 0; i < a.length; i++) {
+      if (Math.abs(a[i] - b[i]) <= tolerance) match++;
+    }
+    return match / a.length;
+  }
+
+  function computeHistCorrelation(a, b) {
+    const BINS = 64;
+    const ha = new Float64Array(BINS), hb = new Float64Array(BINS);
+    for (let i = 0; i < a.length; i++) {
+      ha[Math.min(BINS-1, a[i] * BINS / 256 | 0)]++;
+      hb[Math.min(BINS-1, b[i] * BINS / 256 | 0)]++;
+    }
+    const n = a.length;
+    let meanA = 0, meanB = 0;
+    for (let i = 0; i < BINS; i++) { meanA += ha[i]; meanB += hb[i]; }
+    meanA /= BINS; meanB /= BINS;
+    let num = 0, denA = 0, denB = 0;
+    for (let i = 0; i < BINS; i++) {
+      const da = ha[i] - meanA, db = hb[i] - meanB;
+      num += da*db; denA += da*da; denB += db*db;
+    }
+    const den = Math.sqrt(denA * denB);
+    return den ? Math.max(0, num / den) : 0;
+  }
+
+  function sobelEdges(g, w, h, thresh = 60) {
+    const edges = new Uint8Array(w * h);
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = y*w + x;
+        const gx = -g[i-w-1] - 2*g[i-1] - g[i+w-1] + g[i-w+1] + 2*g[i+1] + g[i+w+1];
+        const gy = -g[i-w-1] - 2*g[i-w] - g[i-w+1] + g[i+w-1] + 2*g[i+w] + g[i+w+1];
+        if (Math.sqrt(gx*gx + gy*gy) > thresh) edges[i] = 1;
+      }
+    }
+    return edges;
+  }
+
+  function computeEdgeSimilarity(ea, eb, w, h) {
+    // Dice coefficient dengan toleransi jarak 2 piksel (tepi foto jarang persis sejajar dengan render)
+    const near = (edges, x, y) => {
+      for (let dy = -2; dy <= 2; dy++)
+        for (let dx = -2; dx <= 2; dx++) {
+          const yy = y + dy, xx = x + dx;
+          if (yy >= 0 && yy < h && xx >= 0 && xx < w && edges[yy*w+xx]) return true;
+        }
+      return false;
+    };
+    let matchA = 0, totalA = 0, matchB = 0, totalB = 0;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = y*w + x;
+        if (ea[i]) { totalA++; if (near(eb, x, y)) matchA++; }
+        if (eb[i]) { totalB++; if (near(ea, x, y)) matchB++; }
+      }
+    }
+    if (!totalA && !totalB) return 1;
+    if (!totalA || !totalB) return 0;
+    return (matchA / totalA + matchB / totalB) / 2;
+  }
+
+  // ---------- Inspeksi utama ----------
+  $("btnCompare").addEventListener("click", () => {
+    $("status").textContent = "Memproses…";
+    $("btnCompare").disabled = true;
+    // beri browser kesempatan render status dulu
+    setTimeout(runInspection, 30);
+  });
+
+  function runInspection() {
+    const useGray = $("grayscale").checked;
+    const useBlur = $("blur").checked;
+    const sensitivity = +$("sensitivity").value;      // 1 ketat, 2 normal, 3 longgar
+    const tolerance = { 1: 18, 2: 32, 3: 50 }[sensitivity];
+    const threshold = +$("threshold").value / 100;
+    const maxDefect = +$("maxDefect").value / 100;
+
+    const nRef = normalize(state.ref);
+    const nAct = normalize(state.act);
+    const w = nRef.w, h = nRef.h;
+
+    const dRef = nRef.ctx.getImageData(0, 0, w, h);
+    const dAct = nAct.ctx.getImageData(0, 0, w, h);
+
+    let gRef = toGray(dRef.data, w, h);
+    let gAct = toGray(dAct.data, w, h);
+    if (useBlur) { gRef = boxBlur(gRef, w, h); gAct = boxBlur(gAct, w, h); }
+
+    // Metrik
+    const ssim = computeSSIM(gRef, gAct, w, h);
+    const pixel = useGray
+      ? computePixelMatch(gRef, gAct, tolerance)
+      : computePixelMatchRGB(dRef.data, dAct.data, tolerance);
+    const hist = computeHistCorrelation(gRef, gAct);
+    const eRef = sobelEdges(gRef, w, h);
+    const eAct = sobelEdges(gAct, w, h);
+    const edge = computeEdgeSimilarity(eRef, eAct, w, h);
+
+    // Luas area cacat: piksel dengan perbedaan besar (zona merah heatmap)
+    let defectCount = 0;
+    for (let i = 0; i < gRef.length; i++) {
+      if (Math.abs(gRef[i] - gAct[i]) > tolerance * 2) defectCount++;
+    }
+    const defect = defectCount / gRef.length;
+
+    // Skor komposit — SSIM & kontur paling menentukan untuk perbandingan render vs foto
+    const total = 0.40 * ssim + 0.20 * pixel + 0.15 * hist + 0.25 * edge;
+    // OK harus lolos dua kriteria: skor total DAN luas area cacat
+    const isOK = total >= threshold && defect <= maxDefect;
+
+    renderMetrics({ ssim, pixel, hist, edge, defect, total, isOK, threshold, maxDefect });
+    renderCanvases(nRef, nAct, gRef, gAct, w, h, tolerance, dAct);
+
+    $("status").textContent = "";
+    $("btnCompare").disabled = false;
+    $("resultSection").style.display = "grid";
+    $("resultSection").scrollIntoView({ behavior: "smooth" });
+  }
+
+  function computePixelMatchRGB(a, b, tolerance) {
+    let match = 0;
+    const n = a.length / 4;
+    for (let p = 0; p < a.length; p += 4) {
+      const d = (Math.abs(a[p]-b[p]) + Math.abs(a[p+1]-b[p+1]) + Math.abs(a[p+2]-b[p+2])) / 3;
+      if (d <= tolerance) match++;
+    }
+    return match / n;
+  }
+
+  // ---------- Render hasil ----------
+  function pct(v) { return (v * 100).toFixed(1) + "%"; }
+
+  function renderMetrics(r) {
+    const set = (mId, bId, v) => {
+      $(mId).textContent = pct(v);
+      $(bId).style.width = (v * 100) + "%";
+      $(bId).style.background = v >= 0.8 ? "var(--ok)" : v >= 0.6 ? "var(--warn)" : "var(--ng)";
+    };
+    set("mSsim", "bSsim", r.ssim);
+    set("mPixel", "bPixel", r.pixel);
+    set("mHist", "bHist", r.hist);
+    set("mEdge", "bEdge", r.edge);
+
+    // Untuk area cacat: makin kecil makin bagus
+    $("mDefect").textContent = pct(r.defect);
+    $("bDefect").style.width = Math.min(100, (r.defect / Math.max(r.maxDefect * 2, 0.01)) * 100) + "%";
+    $("bDefect").style.background = r.defect <= r.maxDefect ? "var(--ok)" : "var(--ng)";
+
+    $("totalScore").textContent = pct(r.total);
+    const v = $("verdict");
+    v.classList.remove("ok", "ng");
+    v.classList.add(r.isOK ? "ok" : "ng");
+    $("verdictBadge").textContent = r.isOK ? "✔ OK" : "✖ NG";
+    if (r.isOK) {
+      $("verdictNote").textContent =
+        `Skor ${pct(r.total)} ≥ threshold ${pct(r.threshold)} dan area cacat ${pct(r.defect)} ≤ batas ${pct(r.maxDefect)} — produk sesuai referensi 3D.`;
+    } else {
+      const reasons = [];
+      if (r.total < r.threshold) reasons.push(`skor ${pct(r.total)} < threshold ${pct(r.threshold)}`);
+      if (r.defect > r.maxDefect) reasons.push(`area cacat ${pct(r.defect)} > batas ${pct(r.maxDefect)}`);
+      $("verdictNote").textContent = `Ditolak: ${reasons.join(" dan ")} — ditemukan ketidaksesuaian terhadap referensi 3D.`;
+    }
+
+    state.lastResult = r;
+  }
+
+  function renderCanvases(nRef, nAct, gRef, gAct, w, h, tolerance, dAct) {
+    const draw = (id, source) => {
+      const cv = $(id);
+      cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(source, 0, 0);
+    };
+    draw("cvRef", nRef.cv);
+    draw("cvAct", nAct.cv);
+
+    // Heatmap perbedaan
+    const cvDiff = $("cvDiff");
+    cvDiff.width = w; cvDiff.height = h;
+    const ctxD = cvDiff.getContext("2d");
+    const imgD = ctxD.createImageData(w, h);
+
+    // Overlay NG di atas foto aktual
+    const cvO = $("cvOverlay");
+    cvO.width = w; cvO.height = h;
+    const ctxO = cvO.getContext("2d");
+    ctxO.drawImage(nAct.cv, 0, 0);
+    const imgO = ctxO.getImageData(0, 0, w, h);
+
+    for (let i = 0; i < gRef.length; i++) {
+      const d = Math.abs(gRef[i] - gAct[i]);
+      const p = i * 4;
+      if (d <= tolerance) {                    // sama → hijau gelap
+        imgD.data[p] = 12; imgD.data[p+1] = 90; imgD.data[p+2] = 40;
+      } else if (d <= tolerance * 2) {         // sedang → kuning
+        imgD.data[p] = 210; imgD.data[p+1] = 153; imgD.data[p+2] = 34;
+      } else {                                 // besar → merah
+        imgD.data[p] = 248; imgD.data[p+1] = 81; imgD.data[p+2] = 73;
+        // tandai juga di overlay foto aktual
+        imgO.data[p]   = Math.min(255, imgO.data[p] * 0.4 + 200);
+        imgO.data[p+1] = imgO.data[p+1] * 0.3;
+        imgO.data[p+2] = imgO.data[p+2] * 0.3;
+      }
+      imgD.data[p+3] = 255;
+    }
+    ctxD.putImageData(imgD, 0, 0);
+    ctxO.putImageData(imgO, 0, 0);
+  }
+
+  // ---------- Laporan PNG ----------
+  $("btnReport").addEventListener("click", () => {
+    const r = state.lastResult;
+    if (!r) return;
+    const src = [$("cvRef"), $("cvAct"), $("cvDiff"), $("cvOverlay")];
+    const w = src[0].width, h = src[0].height;
+    const PAD = 20, HEADER = 130, LABEL = 26;
+    const cols = 2, rows = 2;
+    const cv = document.createElement("canvas");
+    cv.width = cols * w + PAD * (cols + 1);
+    cv.height = HEADER + rows * (h + LABEL) + PAD * (rows + 1);
+    const ctx = cv.getContext("2d");
+
+    ctx.fillStyle = "#0d1117";
+    ctx.fillRect(0, 0, cv.width, cv.height);
+
+    ctx.fillStyle = r.isOK ? "#3fb950" : "#f85149";
+    ctx.font = "bold 42px sans-serif";
+    ctx.fillText(r.isOK ? "HASIL: OK" : "HASIL: NG", PAD, 52);
+    ctx.fillStyle = "#e6edf3";
+    ctx.font = "18px sans-serif";
+    ctx.fillText(`Skor total: ${pct(r.total)}  |  Threshold: ${pct(r.threshold)}  |  ${new Date().toLocaleString("id-ID")}`, PAD, 84);
+    ctx.fillStyle = "#8b949e";
+    ctx.font = "15px sans-serif";
+    ctx.fillText(`SSIM ${pct(r.ssim)}  ·  Piksel ${pct(r.pixel)}  ·  Histogram ${pct(r.hist)}  ·  Kontur ${pct(r.edge)}  ·  Area cacat ${pct(r.defect)} (maks ${pct(r.maxDefect)})`, PAD, 110);
+
+    const labels = ["Referensi 3D", "Aktual", "Heatmap Perbedaan", "Overlay Area NG"];
+    src.forEach((c, i) => {
+      const col = i % cols, row = (i / cols) | 0;
+      const x = PAD + col * (w + PAD);
+      const y = HEADER + PAD + row * (h + LABEL + PAD);
+      ctx.fillStyle = "#8b949e";
+      ctx.font = "14px sans-serif";
+      ctx.fillText(labels[i], x, y - 6);
+      ctx.drawImage(c, x, y);
+    });
+
+    const a = document.createElement("a");
+    a.download = `inspeksi_${r.isOK ? "OK" : "NG"}_${Date.now()}.png`;
+    a.href = cv.toDataURL("image/png");
+    a.click();
+  });
+
+})();
+</script>
+</body>
+</html>
