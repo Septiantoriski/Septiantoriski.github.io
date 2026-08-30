@@ -1,5 +1,5 @@
-const STORAGE_KEY = 'portfolio_visitors';
 const SESSION_KEY = 'portfolio_session_id';
+const ACTIVE_SESSIONS_KEY = 'portfolio_active_sessions';
 
 function getSessionId() {
     let sessionId = sessionStorage.getItem(SESSION_KEY);
@@ -10,42 +10,62 @@ function getSessionId() {
     return sessionId;
 }
 
-function updateVisitorCount() {
+function getActiveSessions() {
     try {
-        let visitors = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
-            total: 0,
-            sessions: {},
-            lastReset: new Date().toDateString()
-        };
-
-        const today = new Date().toDateString();
-        if (visitors.lastReset !== today) {
-            visitors.total = 0;
-            visitors.sessions = {};
-            visitors.lastReset = today;
+        const data = localStorage.getItem(ACTIVE_SESSIONS_KEY);
+        if (!data) {
+            return {};
         }
+        const sessions = JSON.parse(data);
+        const now = Date.now();
+        const timeout = 5 * 60 * 1000; // 5 minutes inactivity timeout
 
-        const sessionId = getSessionId();
-        if (!visitors.sessions[sessionId]) {
-            visitors.sessions[sessionId] = true;
-            visitors.total++;
-        }
+        // Clean up expired sessions
+        Object.keys(sessions).forEach(sid => {
+            if (now - sessions[sid] > timeout) {
+                delete sessions[sid];
+            }
+        });
 
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(visitors));
-
-        const el = document.getElementById('online-users-count');
-        if (el) {
-            el.textContent = visitors.total;
-        }
+        return sessions;
     } catch (err) {
-        console.warn('Storage not available, using fallback count', err);
-        const el = document.getElementById('online-users-count');
-        if (el) {
-            el.textContent = Math.floor(Math.random() * 50) + 10;
-        }
+        return {};
+    }
+}
+
+function updateActiveSessions() {
+    try {
+        const sessions = getActiveSessions();
+        const sessionId = getSessionId();
+        sessions[sessionId] = Date.now();
+        localStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(sessions));
+        return Object.keys(sessions).length;
+    } catch (err) {
+        return Math.floor(Math.random() * 50) + 5;
+    }
+}
+
+function updateVisitorCount() {
+    const count = updateActiveSessions();
+    const el = document.getElementById('online-users-count');
+    if (el) {
+        el.textContent = count;
     }
 }
 
 updateVisitorCount();
 setInterval(updateVisitorCount, 30000);
+
+window.addEventListener('beforeunload', () => {
+    try {
+        const sessions = getActiveSessions();
+        const sessionId = sessionStorage.getItem(SESSION_KEY);
+        if (sessionId && sessions[sessionId]) {
+            delete sessions[sessionId];
+            localStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(sessions));
+        }
+    } catch (err) {
+        // Silent fail
+    }
+});
 
