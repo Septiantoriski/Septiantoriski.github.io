@@ -7,7 +7,16 @@ function myMenuFunction(){
     } else {
       menuBtn.className = "nav-menu";
     }
-  }
+}
+
+function closeMenu() {
+    var menuBtn = document.getElementById("myNavMenu");
+    menuBtn.className = "nav-menu";
+}
+
+document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', closeMenu);
+});
 
 /* ----- ADD SHADOW ON NAVIGATION BAR WHILE SCROLLING ----- */
   window.onscroll = function() {headerShadow()};

@@ -224,18 +224,18 @@
                 </div>
              </div>
              <div class="col">
-                <div class="form-control">
+                <form class="form-control" action="https://formspree.io/f/mqagzrql" method="POST">
                     <div class="form-inputs">
-                        <input type="text" class="input-field" placeholder="Nama">
-                        <input type="text" class="input-field" placeholder="Email">
+                        <input type="text" class="input-field" name="name" placeholder="Nama" required>
+                        <input type="email" class="input-field" name="email" placeholder="Email" required>
                     </div>
                     <div class="text-area">
-                        <textarea placeholder="Pesan kamu..."></textarea>
+                        <textarea name="message" placeholder="Pesan kamu..." required></textarea>
                     </div>
                     <div class="form-button">
-                        <button class="btn">Kirim <i class="uil uil-message"></i></button>
+                        <button type="submit" class="btn">Kirim <i class="uil uil-message"></i></button>
                     </div>
-                </div>
+                </form>
              </div>
           </div>
        </section>
